@@ -104,7 +104,7 @@ module_param(nested, bool, S_IRUGO);
 
 static u64 __read_mostly host_xss;
 
-static bool __read_mostly enable_pml = 0;
+static bool __read_mostly enable_pml = 1;
 module_param_named(pml, enable_pml, bool, S_IRUGO);
 
 #define KVM_VMX_TSC_MULTIPLIER_MAX     0xffffffffffffffffULL
