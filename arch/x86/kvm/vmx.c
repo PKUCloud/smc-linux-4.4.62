@@ -51,6 +51,8 @@
 #include "trace.h"
 #include "pmu.h"
 
+//#define RSR_PAGE_FT_EXIT_COUNTER_BASE 100
+
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 #define __ex_clear(x, reg) \
 	____kvm_handle_fault_on_reboot(x, "xor " reg " , " reg)
@@ -104,7 +106,7 @@ module_param(nested, bool, S_IRUGO);
 
 static u64 __read_mostly host_xss;
 
-static bool __read_mostly enable_pml = 1;
+static bool __read_mostly enable_pml = 0;
 module_param_named(pml, enable_pml, bool, S_IRUGO);
 
 #define KVM_VMX_TSC_MULTIPLIER_MAX     0xffffffffffffffffULL
@@ -5888,6 +5890,10 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	u32 error_code;
 	int gla_validity;
 
+#ifdef RSR_PAGE_FT_EXIT_COUNTER_BASE
+	static u64 rsr_page_fault_exit_counter;
+#endif
+
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
 	gla_validity = (exit_qualification >> 7) & 0x3;
@@ -5925,6 +5931,15 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	error_code |= (exit_qualification >> 3) & PFERR_PRESENT_MASK;
 
 	vcpu->arch.exit_qualification = exit_qualification;
+
+#ifdef RSR_PAGE_FT_EXIT_COUNTER_BASE
+        if ((error_code & PFERR_WRITE_MASK) && (error_code & PFERR_PRESENT_MASK)) {
+                ++rsr_page_fault_exit_counter;
+                if (rsr_page_fault_exit_counter % RSR_PAGE_FT_EXIT_COUNTER_BASE == 0) {
+                        printk("Page fault exit %llu \n", rsr_page_fault_exit_counter);
+                }
+        }
+#endif
 
 	return kvm_mmu_page_fault(vcpu, gpa, error_code, NULL, 0);
 }

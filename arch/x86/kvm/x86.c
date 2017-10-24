@@ -68,6 +68,8 @@
 #include <asm/div64.h>
 #include <asm/irq_remapping.h>
 
+//#define RSR_EXIT_COUNTER 1
+
 #define MAX_IO_MSRS 256
 #define KVM_MAX_MCE_BANKS 32
 #define KVM_MCE_CAP_SUPPORTED (MCG_CTL_P | MCG_SER_P)
@@ -6392,7 +6394,9 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		kvm_cpu_accept_dm_intr(vcpu);
 
 	bool req_immediate_exit = false;
-
+#ifdef RSR_EXIT_COUNTER
+	static u64 rsr_vmexit_counter;
+#endif
 	if (vcpu->requests) {
 		if (kvm_check_request(KVM_REQ_MMU_RELOAD, vcpu))
 			kvm_mmu_unload(vcpu);
@@ -6624,6 +6628,14 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 	if (vcpu->arch.apic_attention)
 		kvm_lapic_sync_from_vapic(vcpu);
+
+#ifdef RSR_EXIT_COUNTER
+	++rsr_vmexit_counter;
+	//printk("VM exit: %llu \n", rsr_vmexit_counter);
+	if (rsr_vmexit_counter % 100000 == 0) {
+		printk("VM exit: %llu \n", rsr_vmexit_counter);
+	}
+#endif
 
 	r = kvm_x86_ops->handle_exit(vcpu);
 	return r;
